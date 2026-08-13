@@ -1,0 +1,14 @@
+SAMPLE BOM - Demo Board Rev A,,,,,,,,,
+Reference Designator,Manufacturer Part Number,Manufacturer,Qty,Description,Value,Package,Tolerance,Unit Price,Category
+PCB1,,,1,Main board 4-layer FR4,,,,,PCB
+U1,STM32F030C8T6,ST,1,ARM Cortex-M0 MCU 64KB Flash,,LQFP-48,,1.85,IC
+U2,NE555DR,TI,1,Precision Timer,,SOIC-8,,0.42,IC
+U3,LM358DR,TI,2,Dual Operational Amplifier,,SOIC-8,,0.18,IC
+R1,RC0402FR-0710KL,YAGEO,10,Thick Film Resistor,10K,0402,1%,0.002,Resistor
+R2,RC0402JR-07100RL,YAGEO,4,Thick Film Resistor,100R,0402,5%,0.002,Resistor
+C1,CL05A105KO5NNNC,SAMSUNG,20,MLCC Ceramic Capacitor,1uF,0402,10%,0.004,Capacitor
+C2,,MURATA,8,MLCC Ceramic Capacitor,100nF,0603,10%,0.003,Capacitor
+D1,1N4148W-7-F,Diodes,5,Small Signal Switching Diode,,SOD-123,,0.015,Diode
+Q1,MMBT3904LT1G,onsemi,3,NPN General Purpose Transistor,,SOT-23,,0.021,Transistor
+J1,61300311121,Wurth,1,Pin Header 3-Position 2.54mm,,THT,,0.185,Connector
+LBL1,,,1,Product serial label 30x15mm,,,,,標籤

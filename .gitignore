@@ -1,0 +1,38 @@
+# 環境變數 / 機密資訊
+.env
+
+# 本機查詢快取(含 Mouser 回傳的料件資料,不含 Key,但仍建議不進版控)
+.mouser_cache.json
+
+# 輸出報表(通常含專案 BOM 內容,不建議進版控)
+*.xlsx
+!.gitkeep
+*.html
+~$*.xlsx
+
+# 例外:examples/ 底下的示範檔案是刻意要進版控的假資料,不含任何真實料件。
+# adapters/ 的 normalize_compound_spec_bom.py 只吃 xlsx(用 openpyxl 讀),
+# 所以複合格式的示範檔沒辦法改用 csv 繞過上面的 *.xlsx 規則。
+# 注意:!examples/*.xlsx 這條例外規則會蓋掉上面的 ~$*.xlsx——git 的規則是
+# 後面的比對優先,所以下面一定要再補一條把 examples/ 底下的 Excel 鎖定檔
+# 重新擋掉,不然打開範例檔案時產生的 ~$sample_....xlsx 會被誤收進版控。
+!examples/
+!examples/*.xlsx
+!examples/*.csv
+examples/~$*
+
+# Pipeline 中間產物(含真實 BOM 明細:ref_des/mpn/manufacturer/單價等)
+parsed_bom*.json
+vendor_candidates*.json
+match_scores*.json
+review_verdicts*.json
+
+# 報表輸出資料夾:資料夾名稱常含專案代號,不特別列名稱比對——
+# 上面 *.xlsx / *.html / ~$*.xlsx 已經擋掉裡面的實際內容,
+# 空資料夾本身 git 不會追蹤,不需要額外規則
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
