@@ -1,11 +1,11 @@
 ---
 name: bom-report-finalize
-description: Step 5 (final step) of the BOM pricing pipeline — merge the earlier steps' JSON artifacts and (optionally) bom-match-review's verdicts into the final priced xlsx report the user actually opens (Summary sheet with totals/Top10, BOM_vs_Vendors detail sheet). Pure local merge, no API calls, cheap to re-run. Use this as the last step after bom-match-score (and optionally bom-match-review), or whenever the user asks for the finished quote — "產出報價表"/"給我最終的 Excel"/"regenerate the report" — including after re-scoring or adding new review verdicts, which never require re-running the vendor lookup.
+description: Step 5 (final step) of the BOM pricing pipeline — merge the earlier steps' JSON artifacts and (optionally) bom-match-review's verdicts into the final priced report the user actually opens: an xlsx (Summary sheet with totals/Top10, BOM_vs_Vendors detail sheet) plus a same-name HTML visual summary by default, both auto-organized into a dated per-run folder. Pure local merge, no API calls, cheap to re-run. Use this as the last step after bom-match-score (and optionally bom-match-review), or whenever the user asks for the finished quote — "產出報價表"/"給我最終的 Excel"/"regenerate the report" — including after re-scoring or adding new review verdicts, which never require re-running the vendor lookup.
 ---
 
 # BOM Report Finalize(節點 D)
 
-把前面幾步的 JSON artifact 合併,產出使用者真正要看的**最終 xlsx 報表**
+把前面幾步的 JSON artifact 合併,產出使用者真正要看的**最終 xlsx + html 報表**
 (Summary 分頁:料件總數、match_status 統計、單價總價/含 MOQ 預算、Top 10
 高價料件;BOM_vs_Vendors 分頁:逐筆明細)。純本機合併,不打任何外部 API,
 跑起來很快,可以放心重跑。

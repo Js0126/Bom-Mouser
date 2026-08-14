@@ -11,7 +11,7 @@ flowchart LR
     B -->|"② bom-vendor-lookup<br/>⚡ 唯一打外部 API"| C["vendor_candidates.json"]
     C -->|"③ bom-match-score<br/>本機規則式評分,免費"| D["match_scores.json"]
     D -.->|"④ bom-match-review(選用)<br/>🧠 Claude 語意複核,免費"| E["review_verdicts.json"]
-    D -->|"⑤ bom-report-finalize"| F["最終報價 xlsx"]
+    D -->|"⑤ bom-report-finalize"| F["最終報價 xlsx + html"]
     E -.-> F
 ```
 

@@ -25,7 +25,7 @@
 | `bom-vendor-lookup` | B | `parsed_bom.json` → `vendor_candidates.json` | 是(唯一會打 Mouser/DigiKey 的一步) |
 | `bom-match-score` | C(規則式) | + `vendor_candidates.json` → `match_scores.json` | 否 |
 | `bom-match-review` | C(語意判斷) | `match_scores.json` 裡的模糊項 → `review_verdicts.json` | 否(Claude 在 session 裡親自判斷,不是付費 API) |
-| `bom-report-finalize` | D | 以上全部(+ 選用的 `review_verdicts.json`)→ **最終 xlsx** | 否 |
+| `bom-report-finalize` | D | 以上全部(+ 選用的 `review_verdicts.json`)→ **最終 xlsx + html** | 否 |
 
 好處:改了 `manufacturer_aliases.md` 或有新的 Claude 判決,只要重跑
 `bom-match-score`/`bom-report-finalize`,**不需要**重新查詢 Mouser/
