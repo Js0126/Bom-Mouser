@@ -289,12 +289,12 @@ xlsx/html 用資料夾名稱當檔名前綴。
 蓋掉、下次要重查)。
 
 **`mouser_lookup.py` 自己的一次到底 CLI**(`python mouser_lookup.py
-your_bom.xlsx -o report.xlsx` 這種直接跑完整流程、不透過五個 skill 的用法)
-**沒有套用這套資料夾邏輯**——它的 `-o` 預設是寫死的 `bom_mouser_report.xlsx`
-(專案根目錄,見 `main()`),不會自動建資料夾,也不會受益於這裡的併發保護。
-會用到這個一次到底 CLI 的場合通常是單人快速測試,兩個 session 同時用這個
-入口處理不同 BOM 仍會撞名互相覆蓋——如果之後這個用法變成常態,值得比照
-五個 skill 補上同樣的資料夾邏輯。
+your_bom.xlsx` 這種直接跑完整流程、不透過五個 skill 的用法,見
+`run_pipeline()`)現在也套用同一套資料夾邏輯了——不指定 `-o` 時一樣用
+`default_run_folder()` 建「今天日期_BOM檔名」資料夾。這支 CLI 是
+README〈快速開始〉主推給沒裝 Claude Code 的人用的入口,兩個人各自拿它
+處理不同 BOM 也不會撞名互相覆蓋。用 `-o` 明確指定路徑時一樣完全不套用
+這層邏輯,行為跟其他四步一致。
 
 ### HTML 視覺化摘要(`render_html_report()`)
 

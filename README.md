@@ -97,22 +97,24 @@ python test_pipeline.py
 倉庫附了一份假資料的示範 BOM,可以先拿它熟悉流程:
 
 ```bash
-python mouser_lookup.py examples/sample_bom.csv -o report.xlsx --limit 5
+python mouser_lookup.py examples/sample_bom.csv --limit 5
 ```
 
 換成你自己的 BOM:
 
 ```bash
-python mouser_lookup.py your_bom.xlsx -o report.xlsx
+python mouser_lookup.py your_bom.xlsx
 ```
 
 **第一次跑一份新的 BOM,強烈建議先加 `--limit 5` 小批量測試**,確認欄位
 有對到再跑整份——不然欄位對錯了,整份 BOM 的查詢額度就白花了。
 
-跑完除了 `-o` 指定的 xlsx,同一路徑還會多一份同檔名的 `.html`——給人看的
-視覺化摘要(總價、配對狀況分布、Top 10 排行),數字跟 xlsx 保證一致,
-不需要的話加 `--no-html`。透過 skill 走(見下面〈怎麼用〉)、沒指定 `-o`
-的話,兩份檔案會自動放進同一個新資料夾,不會散在專案根目錄裡。
+不指定 `-o` 的話,會自動建立「今天日期_BOM檔名」資料夾(例如
+`20260814_your_bom/`),xlsx 跟同檔名的 `.html`(給人看的視覺化摘要:
+總價、配對狀況分布、Top 10 排行,數字跟 xlsx 保證一致,不需要的話加
+`--no-html`)都放進去——不管是這支一次到底的 CLI,還是透過 skill 走
+(見下面〈怎麼用〉),都是同一套資料夾規則,兩個人各自處理不同 BOM
+不會撞名互相覆蓋。要指定固定路徑就加 `-o report.xlsx`。
 
 ### 我的 BOM 跑出來 mpn 整欄都是空的
 
@@ -170,7 +172,7 @@ skill;你說的話符合某個 skill 的觸發條件(例如「幫我報價這份
 
 | 參數 | 說明 |
 | --- | --- |
-| `-o / --out` | 輸出報表路徑,預設 `bom_mouser_report.xlsx` |
+| `-o / --out` | 輸出報表路徑;不指定則自動建立「今天日期_BOM檔名」資料夾,存到裡面 |
 | `--limit N` | 只處理前 N 筆 BOM 列,小批量測試用,避免一次跑完整份 BOM |
 | `--no-cache` | 停用本機查詢快取(`.mouser_cache.json`) |
 | `--no-keyword-fallback` | 停用缺 MPN 料件的 keyword 搜尋(Mouser 端) |

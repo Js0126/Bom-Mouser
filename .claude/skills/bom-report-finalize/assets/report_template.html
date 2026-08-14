@@ -1,0 +1,776 @@
+<title>{{TITLE}}</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #EEF2F5;
+    --surface: #FFFFFF;
+    --surface-alt: #F5F8FA;
+    --ink: #101A24;
+    --ink-secondary: #48586A;
+    --ink-muted: #7C8CA0;
+    --border: #D7DEE5;
+    --border-soft: #E4EAEF;
+    --accent: #1B3A6B;
+    --accent-bright: #2E72C9;
+    --accent-wash: #E4EDF8;
+    --copper: #B9793D;
+    --good: #0ca30c;
+    --good-wash: #E4F5E4;
+    --warning: #c98a00;
+    --warning-wash: #FDF1DA;
+    --critical: #d03b3b;
+    --critical-wash: #FBE6E6;
+    --neutral-mark: #8FA0B3;
+    --neutral-wash: #E9EDF1;
+    --shadow: 0 1px 2px rgba(16, 26, 36, 0.04), 0 8px 24px -12px rgba(16, 26, 36, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --bg: #0E1620;
+      --surface: #16212C;
+      --surface-alt: #1B2732;
+      --ink: #E9EEF3;
+      --ink-secondary: #A9B8C6;
+      --ink-muted: #75879A;
+      --border: #2A3946;
+      --border-soft: #223140;
+      --accent: #7FB3EE;
+      --accent-bright: #4C9AFF;
+      --accent-wash: #1B2E45;
+      --copper: #D9964F;
+      --good: #38c238;
+      --good-wash: #163420;
+      --warning: #fab219;
+      --warning-wash: #3A2C10;
+      --critical: #f0625f;
+      --critical-wash: #3A1A1A;
+      --neutral-mark: #728598;
+      --neutral-wash: #212E39;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0E1620;
+    --surface: #16212C;
+    --surface-alt: #1B2732;
+    --ink: #E9EEF3;
+    --ink-secondary: #A9B8C6;
+    --ink-muted: #75879A;
+    --border: #2A3946;
+    --border-soft: #223140;
+    --accent: #7FB3EE;
+    --accent-bright: #4C9AFF;
+    --accent-wash: #1B2E45;
+    --copper: #D9964F;
+    --good: #38c238;
+    --good-wash: #163420;
+    --warning: #fab219;
+    --warning-wash: #3A2C10;
+    --critical: #f0625f;
+    --critical-wash: #3A1A1A;
+    --neutral-mark: #728598;
+    --neutral-wash: #212E39;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Optima", "Candara", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 40px 24px 64px;
+  }
+  h1, h2, h3 {
+    font-family: "Bahnschrift", "SF Compact Display", "Segoe UI Semibold", "Segoe UI", sans-serif;
+    text-wrap: balance;
+    margin: 0;
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .mono {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+  }
+  a { color: var(--accent-bright); }
+
+  /* ---------- Header ---------- */
+  .header {
+    position: relative;
+    padding: 30px 32px 26px;
+    border-radius: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .header-trace {
+    position: absolute;
+    inset: 0;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  .eyebrow {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--copper);
+    margin: 0 0 8px;
+  }
+  h1 { font-size: 30px; letter-spacing: -0.01em; position: relative; }
+  .header-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    margin-top: 14px;
+    font-size: 13.5px;
+    color: var(--ink-secondary);
+    position: relative;
+  }
+  .header-meta strong { color: var(--ink); font-weight: 600; }
+  .header-meta .dot::before {
+    content: "";
+    display: inline-block;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--ink-muted);
+    margin-right: 20px;
+    vertical-align: middle;
+  }
+
+  /* ---------- Sections ---------- */
+  .section { margin-top: 36px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .section-head h2 { font-size: 18px; }
+  .section-head .hint { font-size: 12.5px; color: var(--ink-muted); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 24px 26px;
+  }
+
+  /* ---------- Stat tiles ---------- */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .stat-tile {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+  }
+  .stat-tile .label {
+    font-size: 12px;
+    color: var(--ink-secondary);
+    margin: 0 0 8px;
+  }
+  .stat-tile .value {
+    font-family: "Bahnschrift", "Segoe UI Semibold", sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .stat-tile .value .unit { font-size: 14px; font-weight: 600; color: var(--ink-secondary); margin-left: 3px; }
+  .stat-tile .sub { font-size: 12px; color: var(--ink-muted); margin-top: 6px; }
+  .stat-tile.hero .value { font-size: 30px; color: var(--accent); }
+  .stat-tile.warn-tile .value { color: var(--warning); }
+
+  /* ---------- Composition bar ---------- */
+  .comp-bar {
+    display: flex;
+    height: 26px;
+    border-radius: 6px;
+    overflow: hidden;
+    gap: 2px;
+    background: var(--border-soft);
+  }
+  .comp-seg {
+    height: 100%;
+    transition: flex-grow 0.5s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .comp-seg { transition: none; }
+  }
+  .comp-legend {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 24px;
+    margin-top: 18px;
+  }
+  .comp-group-label {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    letter-spacing: 0.01em;
+    padding: 14px 0 2px;
+  }
+  .comp-legend > .comp-group-label:first-child { padding-top: 0; }
+  .comp-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border-soft);
+  }
+  .comp-group-label + .comp-row { border-top: none; }
+  .comp-dot {
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    margin-top: 4px;
+    flex: none;
+  }
+  .comp-row .rt { flex: 1; min-width: 0; }
+  .comp-row .rt-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13.5px;
+  }
+  .comp-row .rt-top .name { color: var(--ink); font-weight: 600; }
+  .comp-row .rt-top .count { font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; color: var(--ink-secondary); }
+  .comp-row .rt-desc { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
+
+  /* ---------- Verdict pills ---------- */
+  .verdict-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--border-soft);
+    background: var(--surface-alt);
+  }
+  .pill .n { font-family: ui-monospace, monospace; font-size: 14px; }
+  .pill.good { color: var(--good); background: var(--good-wash); border-color: transparent; }
+  .pill.critical { color: var(--critical); background: var(--critical-wash); border-color: transparent; }
+  .pill.warning { color: var(--warning); background: var(--warning-wash); border-color: transparent; }
+
+  /* ---------- Ranked list ---------- */
+  .chart-card { padding: 10px 26px 10px; }
+  .rank-row {
+    display: grid;
+    grid-template-columns: 30px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 13px 0;
+    border-top: 1px solid var(--border-soft);
+  }
+  .rank-row:first-of-type { border-top: none; }
+  .rank-badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--surface-alt);
+    color: var(--ink-secondary);
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rank-row:nth-child(1) .rank-badge { background: var(--accent-wash); color: var(--accent); }
+  .rank-info { min-width: 0; }
+  .rank-info .top-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .rank-info .part-mpn {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .rank-info .part-mfr {
+    font-size: 12px;
+    color: var(--ink-secondary);
+    font-weight: 600;
+  }
+  .status-chip {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+    flex: none;
+  }
+  .status-chip.rule { color: var(--accent); background: var(--accent-wash); }
+  .status-chip.claude { color: var(--copper); background: var(--good-wash); }
+  .rank-info .part-desc {
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin-top: 3px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .part-meta {
+    font-size: 11.5px;
+    color: var(--ink-muted);
+    margin-top: 2px;
+  }
+  .rank-info .part-meta { display: block; }
+  .rank-price {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .rank-price .amt {
+    font-family: ui-monospace, monospace;
+    font-size: 16px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .rank-price .cur {
+    font-size: 11px;
+    color: var(--ink-muted);
+    margin-left: 3px;
+  }
+  /* ---------- Excluded list ---------- */
+  .excl-row {
+    padding: 18px 20px;
+    border-radius: 10px;
+    background: var(--surface-alt);
+    margin-bottom: 12px;
+  }
+  .excl-row:last-child { margin-bottom: 0; }
+
+  /* header: ref_des + status chip + price, one line */
+  .excl-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .excl-head-left { display: flex; align-items: center; gap: 10px; }
+  .excl-refdes {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-muted);
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 5px;
+    padding: 2px 7px;
+  }
+  .excl-price {
+    font-family: ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--ink);
+    flex: none;
+  }
+  .excl-price .cur { font-size: 10.5px; color: var(--ink-muted); font-weight: 600; margin-left: 3px; }
+
+  /* compare block: BOM side -> vendor side */
+  .excl-compare {
+    display: grid;
+    grid-template-columns: 1fr 24px 1fr;
+    gap: 10px;
+    align-items: start;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .excl-side-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 4px;
+  }
+  .excl-side-val {
+    font-family: ui-monospace, monospace;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .excl-side-mfr {
+    font-size: 12px;
+    color: var(--ink-secondary);
+    margin-top: 2px;
+  }
+  .excl-side-desc {
+    font-size: 11.5px;
+    color: var(--ink-muted);
+    margin-top: 4px;
+  }
+  .excl-arrow {
+    color: var(--ink-muted);
+    font-size: 16px;
+    text-align: center;
+    padding-top: 18px;
+  }
+
+  /* the "why excluded" block, visually distinct via left accent border */
+  .excl-why {
+    display: flex;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--ink-secondary);
+    line-height: 1.5;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-left: 3px solid var(--critical);
+    background: var(--critical-wash);
+    border-radius: 0 6px 6px 0;
+  }
+  .excl-row.uncertain .excl-why {
+    border-left-color: var(--warning);
+    background: var(--warning-wash);
+  }
+  .excl-why b { color: var(--ink); }
+
+  .status-chip.critical { color: var(--critical); background: var(--critical-wash); }
+  .status-chip.warning { color: var(--warning); background: var(--warning-wash); }
+
+  @media (max-width: 640px) {
+    .excl-compare { grid-template-columns: 1fr; }
+    .excl-arrow { display: none; }
+  }
+
+  .diff-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    background: var(--accent-wash);
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin-left: 4px;
+  }
+
+  .list-legend {
+    display: flex;
+    gap: 18px;
+    font-size: 12px;
+    color: var(--ink-secondary);
+    padding: 14px 0 4px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border-soft);
+    margin-top: 4px;
+  }
+  .list-legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .list-legend .sw { width: 8px; height: 8px; border-radius: 999px; }
+
+  details.table-toggle { margin-top: 10px; }
+  details.table-toggle summary {
+    cursor: pointer;
+    font-size: 12.5px;
+    color: var(--accent-bright);
+    font-weight: 600;
+    padding: 10px 0;
+    list-style: none;
+  }
+  details.table-toggle summary::-webkit-details-marker { display: none; }
+  details.table-toggle summary::before {
+    content: "▸ ";
+  }
+  details.table-toggle[open] summary::before { content: "▾ "; }
+  .table-wrap { overflow-x: auto; margin-bottom: 16px; }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  table.data-table th, table.data-table td {
+    text-align: left;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border-soft);
+    white-space: nowrap;
+  }
+  table.data-table th {
+    color: var(--ink-muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  table.data-table td.num { font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; text-align: right; }
+  table.data-table td.desc-cell { white-space: normal; max-width: 320px; color: var(--ink-secondary); }
+
+  .callout {
+    display: flex;
+    gap: 12px;
+    padding: 16px 18px;
+    border-radius: 10px;
+    background: var(--accent-wash);
+    border: 1px solid transparent;
+    font-size: 13px;
+    color: var(--ink-secondary);
+    margin-top: 16px;
+  }
+  .callout .mark { color: var(--accent); font-weight: 700; flex: none; }
+  .callout b { color: var(--ink); }
+
+  .footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 12px;
+    color: var(--ink-muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (max-width: 720px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .comp-legend { grid-template-columns: 1fr; }
+    .rank-row { grid-template-columns: 24px 1fr; }
+    .rank-price { grid-column: 1 / -1; text-align: left; padding-left: 40px; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="header">
+    <svg class="header-trace" viewBox="0 0 1000 140" preserveAspectRatio="none" aria-hidden="true">
+      <g fill="none" stroke="var(--copper)" stroke-width="1.4">
+        <path d="M640 0 V30 H760 V50 H860 V140" />
+        <path d="M700 0 V16 H820 V60 H960" />
+        <circle cx="760" cy="30" r="3" fill="var(--copper)" stroke="none" />
+        <circle cx="860" cy="50" r="3" fill="var(--copper)" stroke="none" />
+        <circle cx="820" cy="60" r="3" fill="var(--copper)" stroke="none" />
+      </g>
+    </svg>
+    <p class="eyebrow">BOM 報價分析 · BOM-Mouser Pipeline</p>
+    <h1>{{PAGE_HEADING}}</h1>
+    <div class="header-meta">
+      {{HEADER_META}}
+    </div>
+  </header>
+
+  <!-- ---------------- Hero stats ---------------- -->
+  <section class="section">
+    {{HERO_STATS}}
+    <div class="callout">
+      <span class="mark">＄</span>
+      <span>{{CALLOUT_BODY}}</span>
+    </div>
+  </section>
+
+  <!-- ---------------- Match status composition ---------------- -->
+  <section class="section">
+    <div class="section-head">
+      <h2>{{TOTAL_LINES}} 列的配對狀況</h2>
+      <span class="hint">規則式評分(bom-match-score){{REVIEW_HINT_SUFFIX}}</span>
+    </div>
+    <div class="card">
+      {{COMP_BAR_BLOCK}}
+      <div class="comp-legend">
+        {{COMP_LEGEND}}
+      </div>
+      {{VERDICT_ROW}}
+    </div>
+  </section>
+
+  {{EXCLUDED_SECTION}}
+
+  <!-- ---------------- Top 10 by unit price ---------------- -->
+  <section class="section">
+    <div class="section-head">
+      <h2>單價最貴的 10 顆料件</h2>
+      <span class="hint">不看用量,單顆本身最貴</span>
+    </div>
+    <div class="card chart-card">
+      <div id="list-unit-price"></div>
+      <div class="list-legend">
+        <span class="key"><span class="sw" style="background:var(--accent);"></span> matched(規則式判定)</span>
+        <span class="key"><span class="sw" style="background:var(--copper);"></span> matched_by_claude(Claude 複核判定)</span>
+      </div>
+      <details class="table-toggle">
+        <summary>顯示為表格</summary>
+        <div class="table-wrap">
+          <table class="data-table" id="table-unit-price">
+            <thead><tr><th>BOM 型號</th><th>供應商型號</th><th>廠牌</th><th>品名</th><th>用量</th><th>單價 ({{CURRENCY}})</th><th>狀態</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ---------------- Top 10 by line total ---------------- -->
+  <section class="section">
+    <div class="section-head">
+      <h2>對總價貢獻最大的 10 顆料件</h2>
+      <span class="hint">單價 × 用量,忽略 MOQ —— 跟上面的榜單常常不一樣</span>
+    </div>
+    <div class="card chart-card">
+      <div id="list-line-total"></div>
+      <div class="list-legend">
+        <span class="key"><span class="sw" style="background:var(--accent);"></span> matched(規則式判定)</span>
+        <span class="key"><span class="sw" style="background:var(--copper);"></span> matched_by_claude(Claude 複核判定)</span>
+      </div>
+      <details class="table-toggle">
+        <summary>顯示為表格</summary>
+        <div class="table-wrap">
+          <table class="data-table" id="table-line-total">
+            <thead><tr><th>BOM 型號</th><th>供應商型號</th><th>廠牌</th><th>品名</th><th>用量</th><th>單價 ({{CURRENCY}})</th><th>小計 ({{CURRENCY}})</th><th>狀態</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span>資料來源:{{META_SOURCE_FILE}} → bom-parse → bom-vendor-lookup(Mouser/DigiKey)→ bom-match-score{{REVIEW_HINT_SUFFIX}} → bom-report-finalize</span>
+    <span>幣別 {{CURRENCY}},不同幣別不會自動換算{{MULTI_CURRENCY_NOTE}}</span>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var REPORT_DATA = {{REPORT_DATA_JSON}};
+  var unitPriceData = REPORT_DATA.unitPriceTop10;
+  var lineTotalData = REPORT_DATA.lineTotalTop10;
+  var excludedData = REPORT_DATA.excluded;
+
+  function fmt(n) {
+    return n.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+  function esc(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function statusLabel(s) {
+    return s === "matched_by_claude" ? "Claude 複核確認" : "規則式判定";
+  }
+
+  function renderList(containerId, data, valueKey, showLineNote) {
+    var el = document.getElementById(containerId);
+    if (!el) return;
+    var html = data.map(function (d, i) {
+      var isClaude = d.status === "matched_by_claude";
+      var chip = isClaude
+        ? '<span class="status-chip claude">Claude 複核</span>'
+        : '<span class="status-chip rule">規則判定</span>';
+      var diffBadge = d.diffOnly ? '<span class="diff-badge" title="沒出現在「單價最貴」榜單裡">未上榜單價 Top10</span>' : '';
+      var metaBits = ["用量 " + d.qty];
+      if (showLineNote) metaBits.push("單價 " + fmt(d.price) + " TWD");
+      return (
+        '<div class="rank-row">' +
+          '<div class="rank-badge">' + (i + 1) + '</div>' +
+          '<div class="rank-info">' +
+            '<div class="top-line">' +
+              '<span class="part-mpn">' + esc(d.mouserMpn) + '</span>' +
+              (d.mpn !== "—" && d.mpn !== d.mouserMpn ? '<span class="part-meta">(BOM: ' + esc(d.mpn) + ')</span>' : '') +
+              '<span class="part-mfr">' + esc(d.mfr) + '</span>' +
+              chip +
+            '</div>' +
+            '<div class="part-desc">' + esc(d.desc) + '</div>' +
+            '<div class="part-meta">' + metaBits.join(' · ') + diffBadge + '</div>' +
+          '</div>' +
+          '<div class="rank-price"><span class="amt">' + fmt(d[valueKey]) + '</span><span class="cur">TWD</span></div>' +
+        '</div>'
+      );
+    }).join("");
+    el.innerHTML = html;
+  }
+
+  function renderExcluded(containerId, data) {
+    var el = document.getElementById(containerId);
+    if (!el) return;
+    var sorted = data.slice().sort(function (a, b) { return b.price - a.price; });
+    var html = sorted.map(function (d) {
+      var isReject = d.status === "rejected";
+      var chip = isReject
+        ? '<span class="status-chip critical">REJECT · 判定配錯</span>'
+        : '<span class="status-chip warning">UNCERTAIN · 待確認</span>';
+      var whyLabel = isReject ? "為什麼判定配錯:" : "為什麼還不確定:";
+      return (
+        '<div class="excl-row' + (isReject ? '' : ' uncertain') + '">' +
+          '<div class="excl-head">' +
+            '<div class="excl-head-left">' +
+              '<span class="excl-refdes">位號 ' + esc(d.refdes) + '</span>' +
+              chip +
+            '</div>' +
+            '<div class="excl-price">' + fmt(d.price) + '<span class="cur">TWD</span></div>' +
+          '</div>' +
+          '<div class="excl-compare">' +
+            '<div class="excl-side">' +
+              '<div class="excl-side-label">BOM 上寫的</div>' +
+              '<div class="excl-side-val">' + esc(d.bomMpn) + '</div>' +
+              '<div class="excl-side-mfr">廠商:' + esc(d.bomMfr) + '</div>' +
+            '</div>' +
+            '<div class="excl-arrow">→</div>' +
+            '<div class="excl-side">' +
+              '<div class="excl-side-label">供應商配到的料</div>' +
+              '<div class="excl-side-val">' + esc(d.mouserMpn) + '</div>' +
+              '<div class="excl-side-mfr">廠商:' + esc(d.mfr) + '</div>' +
+              '<div class="excl-side-desc">' + esc(d.desc) + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="excl-why"><span>⚠</span><span><b>' + whyLabel + '</b>' + esc(d.reason) + '</span></div>' +
+        '</div>'
+      );
+    }).join("");
+    el.innerHTML = html;
+  }
+
+  function renderTable(tableId, data, cols) {
+    var tbody = document.querySelector("#" + tableId + " tbody");
+    if (!tbody) return;
+    tbody.innerHTML = data.map(function (d) {
+      var cells = cols.map(function (c) {
+        if (c === "price") return '<td class="num">' + fmt(d.price) + '</td>';
+        if (c === "lineTotal") return '<td class="num">' + fmt(d.lineTotal) + '</td>';
+        if (c === "qty") return '<td class="num">' + d.qty + '</td>';
+        if (c === "desc") return '<td class="desc-cell">' + esc(d.desc) + '</td>';
+        if (c === "status") return '<td>' + statusLabel(d.status) + '</td>';
+        return '<td>' + esc(d[c]) + '</td>';
+      }).join("");
+      return '<tr>' + cells + '</tr>';
+    }).join("");
+  }
+
+  renderExcluded("list-excluded", excludedData);
+
+  renderList("list-unit-price", unitPriceData, "price", false);
+  renderTable("table-unit-price", unitPriceData, ["mpn", "mouserMpn", "mfr", "desc", "qty", "price", "status"]);
+
+  renderList("list-line-total", lineTotalData, "lineTotal", true);
+  renderTable("table-line-total", lineTotalData, ["mpn", "mouserMpn", "mfr", "desc", "qty", "price", "lineTotal", "status"]);
+})();
+</script>

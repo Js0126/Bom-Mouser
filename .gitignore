@@ -10,6 +10,13 @@
 *.html
 ~$*.xlsx
 
+# 例外:bom-report-finalize 產生 HTML 報表要用的樣板檔——這是程式邏輯
+# 依賴的原始檔(見 mouser_lookup.py 裡 report_template.html 的路徑常數),
+# 不是「跑出來的報表」,不該被上面的 *.html 規則擋掉。之前漏了這條例外,
+# 導致這個範本檔從第一個 commit 開始就沒進版控,repo 拉下來的人 HTML 那步
+# 會直接找不到範本檔失敗(Excel 那步不受影響,兩者互相獨立)。
+!.claude/skills/bom-report-finalize/assets/report_template.html
+
 # 例外:examples/ 底下的示範檔案是刻意要進版控的假資料,不含任何真實料件。
 # adapters/ 的 normalize_compound_spec_bom.py 只吃 xlsx(用 openpyxl 讀),
 # 所以複合格式的示範檔沒辦法改用 csv 繞過上面的 *.xlsx 規則。

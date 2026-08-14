@@ -1768,7 +1768,7 @@ def write_html_report(report: list[dict], summary: dict, source_bom_path: str, o
 
 def run_pipeline(
     bom_path: str,
-    out_path: str,
+    out_path: str = None,
     use_cache: bool = True,
     enable_keyword_fallback: bool = True,
     enable_digikey_fallback: bool = True,
@@ -1788,10 +1788,20 @@ def run_pipeline(
     兩個入口(這支 CLI 跟 skill 版)產出的東西要一致,不然使用者從
     README「五分鐘走完全流程」那條路徑跑,會少一份 skill 版本才有的 html。
 
+    不指定 out_path 時,跟五個 skill 一致改用 default_run_folder() 建立
+    「今天日期_BOM檔名」資料夾,xlsx/html 都放進去,用資料夾名稱當檔名前綴
+    ——這支 CLI 是 README〈快速開始〉主推的入口,兩個使用者各自拿它處理
+    不同 BOM 時,不套用這個邏輯的話一樣會撞名互相覆蓋(舊版就是固定寫死
+    `bom_mouser_report.xlsx`,吃過這個虧才補上)。
+
     `api_key = _get_api_key()` 刻意放在最前面:沒設定 MOUSER_SEARCH_API_KEY
     的話,寧可在讀檔、解析 BOM 之前就先失敗,不要讓使用者等到查詢階段
     才發現憑證沒設好。
     """
+    if out_path is None:
+        folder = default_run_folder(bom_path)
+        out_path = str(folder / f"{folder.name}_報價.xlsx")
+
     api_key = _get_api_key()
     if enable_digikey_fallback and DIGIKEY_ENABLED:
         print("[mouser_lookup] DigiKey fallback 已啟用(Mouser 查無結果時會自動改查 DigiKey)")
@@ -1834,7 +1844,8 @@ def main():
     pipeline 邏輯時,請直接 import run_pipeline,不需要經過這層 argparse。"""
     parser = argparse.ArgumentParser(description="BOM → Mouser 比價 Pipeline")
     parser.add_argument("bom_path", help="BOM 檔案路徑(.xlsx / .csv)")
-    parser.add_argument("-o", "--out", default="bom_mouser_report.xlsx", help="輸出報表路徑")
+    parser.add_argument("-o", "--out", default=None,
+                         help="輸出報表路徑;不指定則自動建立「今天日期_BOM檔名」資料夾,存到裡面")
     parser.add_argument("--no-cache", action="store_true", help="停用本機查詢快取(.mouser_cache.json)")
     parser.add_argument("--no-keyword-fallback", action="store_true",
                          help="停用缺 MPN 料件的 keyword 搜尋 fallback")
