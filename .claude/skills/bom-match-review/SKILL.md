@@ -74,6 +74,13 @@ DigiKey 都真的查無此料——這種通常沒什麼好判斷的(廠商沒�
 `lookup_key` 要跟 `match_scores.json`/`vendor_candidates.json` 裡的 key
 完全一致(直接複製,不要自己重新組)。
 
+**存檔位置**:寫進輸入的 `match_scores.json` 所在的同一個資料夾(跟
+`parsed_bom.json`/`vendor_candidates.json`/`match_scores.json` 收在一起,
+別另外存在專案根目錄或別的地方)——這是 bom-parse 一開始就建好的「今天
+日期_來源 BOM 檔名」run 資料夾,下一步 `bom-report-finalize` 的 `--review`
+參數預設也會去同一個資料夾找。不同 BOM(=不同 session)各自的資料夾不同,
+這樣才不會跟別份 BOM 的 review 判決混在一起或互相覆蓋。
+
 同時用中文,依 CONFIRM / REJECT / UNCERTAIN 分組,整理一份表格給使用者
 看(欄位:ref_des、mpn、BOM 廠商、供應商廠商、判決、理由)——這是給人看
 的摘要,`review_verdicts.json` 才是給下一步 `bom-report-finalize` 讀的

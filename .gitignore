@@ -27,6 +27,11 @@ vendor_candidates*.json
 match_scores*.json
 review_verdicts*.json
 
+# bom-match-review 等 skill 過程中可能產生的暫存/草稿 JSON(例如篩選出
+# needs_human_review/no_candidates 子集給 Claude 讀的中繼檔)——命名不固定,
+# 用字首 scratch_ 統一擋掉,避免真實 BOM 內容漏網進版控。
+scratch_*.json
+
 # 報表輸出資料夾:資料夾名稱常含專案代號,不特別列名稱比對——
 # 上面 *.xlsx / *.html / ~$*.xlsx 已經擋掉裡面的實際內容,
 # 空資料夾本身 git 不會追蹤,不需要額外規則

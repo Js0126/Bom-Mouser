@@ -68,6 +68,30 @@ MATCH_CONFIDENCE_THRESHOLD = float(os.environ.get("MATCH_CONFIDENCE_THRESHOLD", 
 DEFAULT_CACHE_PATH = Path(__file__).with_name(".mouser_cache.json")
 
 
+def default_run_folder(source_bom_path: str) -> Path:
+    """
+    依「今天日期_來源 BOM 檔名」規則算出這次 pipeline run 專用的資料夾並建立它
+    (不存在就建立,已存在就直接沿用——同一天重跑同一份 BOM 是預期行為)。
+
+    節點 A(bom-parse)在 pipeline 一開始就呼叫這個函式建資料夾,後續節點
+    B/C/D 的預設輸出路徑則是直接沿用「輸入檔案所在的資料夾」(見各自
+    scripts/run.py 的 _default_out_path),不會重新呼叫這個函式再算一次
+    ——避免 pipeline 跨夜執行時,同一個 run 因為「今天」變了而被拆進兩個
+    不同名稱的資料夾。
+
+    這樣兩個 session 只要處理不同的來源 BOM,從第一步開始就會落在不同資料夾,
+    不會共用同一批 parsed_bom.json/vendor_candidates.json/match_scores.json/
+    review_verdicts.json 而互相覆蓋。
+
+    注意:這解決不了 `.mouser_cache.json` 的併發覆蓋問題——那是刻意設計成
+    全專案共用的查詢快取(見 DEFAULT_CACHE_PATH),資料夾隔離對它沒有作用。
+    """
+    today = date.today().strftime("%Y%m%d")
+    folder = Path(f"{today}_{Path(source_bom_path).stem}")
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
 def _get_api_key() -> str:
     """延遲讀取 API Key(呼叫時才檢查),避免 import 這個模組就強制要求環境變數。"""
     key = os.environ.get("MOUSER_SEARCH_API_KEY")

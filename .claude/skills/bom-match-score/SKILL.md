@@ -15,10 +15,11 @@ description: Step 3 of the BOM pricing pipeline — apply rule-based confidence 
 
 ## 執行
 
-在**專案根目錄**執行:
+在**專案根目錄**執行(兩個輸入路徑都換成 run 資料夾裡的實際路徑;不指定
+`-o` 的話,`match_scores.json` 會自動存進同一個資料夾):
 
 ```bash
-python .claude/skills/bom-match-score/scripts/run.py parsed_bom.json vendor_candidates.json -o match_scores.json
+python .claude/skills/bom-match-score/scripts/run.py <run資料夾>/parsed_bom.json <run資料夾>/vendor_candidates.json
 ```
 
 ## 什麼時候要重跑這一步(不用碰節點 B)

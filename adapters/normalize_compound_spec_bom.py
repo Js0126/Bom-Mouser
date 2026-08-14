@@ -35,8 +35,11 @@ Reference),不需要用這支腳本,直接跑 bom-parse skill 就好。
 就好,不用改這支腳本(那份檔案開頭有寫新增流程)。
 
 使用方式(取代 bom-parse skill 的 run.py,直接產生 parsed_bom.json):
-    python adapters/normalize_compound_spec_bom.py <原始BOM.xlsx> -o parsed_bom.json \
-        [--debug-xlsx normalized_debug.xlsx] [--profile bracket_labeled_spec]
+    python adapters/normalize_compound_spec_bom.py <原始BOM.xlsx> \
+        [-o parsed_bom.json] [--debug-xlsx normalized_debug.xlsx] [--profile bracket_labeled_spec]
+
+    不指定 -o 時,跟 bom-parse 一樣自動建立「今天日期_BOM檔名」資料夾,
+    parsed_bom.json 存到裡面(見 ml.default_run_folder)。
 
 `--profile` 平常不用填,腳本會自動掃描前幾列標題去比對
 `supplier_profiles.SUPPLIER_PROFILES` 猜是哪家供應商的格式;只有在自動
@@ -300,7 +303,7 @@ def write_debug_xlsx(rows: list[dict], out_path: str) -> None:
 
 def run(
     bom_path: str,
-    out_json_path: str,
+    out_json_path: str = None,
     debug_xlsx_path: str | None = None,
     profile_id: str | None = None,
 ) -> dict:
@@ -308,11 +311,17 @@ def run(
     對應 bom-parse skill 的 run.py,但用 build_rows() 取代 ml.load_bom_file(),
     其餘(parse_bom / filter_non_purchasable / 輸出 JSON schema)完全共用,
     產出的 parsed_bom.json 跟正常走 bom-parse 產生的格式一模一樣,下游
-    bom-vendor-lookup 等步驟不需要知道這份 BOM 是走哪條路徑解析的。
+    bom-vendor-lookup 等步驟不需要知道這份 BOM 是走哪條路徑解析的——包含
+    不指定 out_json_path 時,同樣用 ml.default_run_folder() 建「今天日期_
+    來源 BOM 檔名」資料夾的預設行為,跟 bom-parse 一致。
 
     profile_id 不填時自動偵測(見 find_header_row());填了就強制用該
     profile,略過自動判斷。
     """
+    if out_json_path is None:
+        folder = ml.default_run_folder(bom_path)
+        out_json_path = str(folder / "parsed_bom.json")
+
     rows = build_rows(bom_path, profile_id=profile_id)
     if debug_xlsx_path:
         write_debug_xlsx(rows, debug_xlsx_path)
@@ -347,7 +356,8 @@ def run(
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("bom_path", nargs="?", help="原始 BOM 檔案路徑(.xlsx)")
-    ap.add_argument("-o", "--out", default="parsed_bom.json", help="輸出 parsed_bom.json 路徑")
+    ap.add_argument("-o", "--out", default=None,
+                     help="輸出 parsed_bom.json 路徑;不指定則自動建立「今天日期_BOM檔名」資料夾,存到裡面")
     ap.add_argument("--debug-xlsx", default=None, help="額外輸出一份正規化後的 .xlsx 供人工核對(選填)")
     ap.add_argument(
         "--profile", default=None,

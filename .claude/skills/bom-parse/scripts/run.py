@@ -3,7 +3,13 @@
 純本機、純腳本,不打任何外部 API。
 
 用法:
-    python run.py <bom_path> -o parsed_bom.json [--header-row N]
+    python run.py <bom_path> [-o parsed_bom.json] [--header-row N]
+
+    不指定 -o 時,會自動建立「今天日期_BOM檔名」資料夾(例如
+    20260814_bom_2024Q1_projectX/),parsed_bom.json 寫進裡面——下游
+    節點 B/C/D 預設也會沿用同一個資料夾,讓一次 pipeline run 的所有中繼
+    檔跟最終報表都收在一起,不同 BOM(=不同 session)不會共用檔名互相
+    覆蓋。手動指定 -o 時完全尊重使用者選的路徑,不套用這個資料夾邏輯。
 
 輸出格式(parsed_bom.json):
     {
@@ -35,7 +41,11 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
 
-def run(bom_path: str, out_path: str, header_row: int = None) -> dict:
+def run(bom_path: str, out_path: str = None, header_row: int = None) -> dict:
+    if out_path is None:
+        folder = ml.default_run_folder(bom_path)
+        out_path = str(folder / "parsed_bom.json")
+
     rows = ml.load_bom_file(bom_path, header_row=header_row)
     bom_lines = ml.parse_bom(rows)
     purchasable, excluded = ml.filter_non_purchasable(bom_lines)
@@ -62,7 +72,8 @@ def run(bom_path: str, out_path: str, header_row: int = None) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="節點 A:BOM 解析")
     parser.add_argument("bom_path", help="BOM 檔案路徑(.xlsx / .csv)")
-    parser.add_argument("-o", "--out", default="parsed_bom.json", help="輸出 JSON 路徑")
+    parser.add_argument("-o", "--out", default=None,
+                         help="輸出 JSON 路徑;不指定則自動建立「今天日期_BOM檔名」資料夾,存到裡面的 parsed_bom.json")
     parser.add_argument("--header-row", type=int, default=None,
                          help="手動指定標題列(0-indexed),不指定則自動偵測")
     args = parser.parse_args()

@@ -4,7 +4,7 @@
 
 用法:
     python run.py <parsed_bom.json> <vendor_candidates.json> <match_scores.json> \
-        -o report.xlsx [--review review_verdicts.json]
+        [-o report.xlsx] [--review review_verdicts.json]
 
 review_verdicts.json(選用,bom-match-review skill 產出)格式:
     {
@@ -23,13 +23,13 @@ review_verdicts.json(選用,bom-match-review skill 產出)格式:
     沒有 --review 參數時,單純用節點 C 的規則式結果出報表,不受影響——這個
     步驟本來就該獨立能用。
 
-    輸出檔名:不指定 -o 的話,預設用「今天日期_來源 BOM 檔名_報價.xlsx」
-    (日期存在 parsed_bom.json 的 "source_bom" 欄位算不出來,直接用執行當下
-    的系統日期),而不是固定的通用檔名——這樣每份 BOM 產出的報表檔名都跟
-    來源對得上、也知道是哪天出的,不用每次現場想,同一天重跑也不會跟前幾天
-    的舊報表搞混。如果算出來的檔名已經存在且寫入時被鎖住(常見於使用者在
-    Excel 裡開著同名舊報表),會自動改用版本化檔名(`_v2`、`_v3`...)重試,
-    不會要求使用者先關檔案。
+    輸出檔名:不指定 -o 的話,預設寫進「輸入的 parsed_bom.json 所在的
+    資料夾」,檔名用該資料夾的名字(bom-parse 一開始就用「今天日期_來源
+    BOM 檔名」規則建好的,例如 20260814_bom_2024Q1_projectX/)+「_報價.xlsx」
+    ——這樣每份 BOM 從第一步到最終報表都收在同一個資料夾,檔名也跟來源
+    對得上、知道是哪天出的。如果算出來的檔名已經存在且寫入時被鎖住(常見
+    於使用者在 Excel 裡開著同名舊報表),會自動改用版本化檔名(`_v2`、
+    `_v3`...)重試,不會要求使用者先關檔案。
 
     除了 xlsx,預設還會在同一個路徑(同檔名、副檔名改 .html)輸出一份
     視覺化摘要網頁(給人看的 infographic,不是給下游步驟讀的中繼檔)——
@@ -40,7 +40,6 @@ review_verdicts.json(選用,bom-match-review skill 產出)格式:
 import argparse
 import json
 import sys
-from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
@@ -57,28 +56,30 @@ _VERDICT_TO_STATUS = {"CONFIRM": "matched_by_claude", "REJECT": "rejected_by_cla
 
 def _default_out_path(parsed_bom_path: str) -> str:
     """
-    沒指定 -o 時的預設輸出路徑:自動開一個「今天日期_來源 BOM 檔名」的資料夾,
-    xlsx 跟 HTML(write_html_report 那邊用 .with_suffix() 算出同資料夾的
-    路徑,見 run())都放進去——BOM 一多,產出物才不會全部散在專案根目錄裡
-    混在一起分不出是哪一批。
+    沒指定 -o 時的預設輸出路徑:xlsx 跟 HTML(write_html_report 那邊用
+    .with_suffix() 算出同資料夾的路徑,見 run())都放進「輸入的
+    parsed_bom.json 所在的資料夾」——這個資料夾在 pipeline 一開始
+    (bom-parse)就已經用「今天日期_來源 BOM 檔名」規則建好了(見
+    mouser_lookup.default_run_folder),這裡直接沿用該資料夾的名稱當
+    xlsx 檔名前綴,不重新用「今天」算一次——如果 parse 是昨天做的、
+    report-finalize 是今天重跑,重算「今天日期」會跟資料夾原本的名字對
+    不起來,變成同一個 run 卻散在兩個不同名稱的地方。
 
-    同一天針對同一份來源 BOM 重跑(例如改完 manufacturer_aliases.md 重算
+    同一份來源 BOM 重跑這一步(例如改完 manufacturer_aliases.md 重算
     分數、或套用新的 review 判決),會重用同一個資料夾、直接覆蓋裡面的
     xlsx/html——這是預期行為,「重跑這一步很便宜、隨時可以重跑」是這整條
-    pipeline 的設計原則,不應該每重跑一次就多開一個資料夾。xlsx 本身若被
-    使用者在 Excel 裡開著鎖住,`_write_with_retry()` 仍會在檔名層級加
-    `_v2`/`_v3` 重試,不會因為資料夾層級的邏輯而受影響。
+    pipeline 的設計原則。xlsx 本身若被使用者在 Excel 裡開著鎖住,
+    `_write_with_retry()` 仍會在檔名層級加 `_v2`/`_v3` 重試,不受這裡
+    的資料夾邏輯影響。
 
     使用者用 -o 明確指定路徑時完全不套用這個資料夾邏輯,尊重使用者自己
-    選的位置。
+    選的位置。相容舊用法:如果 parsed_bom.json 是直接放在專案根目錄
+    (不是放在 run 資料夾裡,例如手動用 -o 指定過路徑的舊產物),
+    folder.name 會是空字串或 "."——這種情況直接退回專案根目錄輸出,
+    不會產生奇怪的檔名。
     """
-    bom_data = json.loads(Path(parsed_bom_path).read_text(encoding="utf-8"))
-    source_bom = Path(bom_data["source_bom"])
-    today = date.today().strftime("%Y%m%d")
-    base_name = f"{today}_{source_bom.stem}"
-
-    folder = Path(base_name)
-    folder.mkdir(parents=True, exist_ok=True)
+    folder = Path(parsed_bom_path).resolve().parent
+    base_name = folder.name or Path(parsed_bom_path).stem
 
     return str(folder / f"{base_name}_報價.xlsx")
 

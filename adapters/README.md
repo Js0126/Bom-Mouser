@@ -50,8 +50,13 @@
 在**專案根目錄**執行:
 
 ```bash
-python adapters/normalize_compound_spec_bom.py <你的BOM.xlsx> -o parsed_bom.json
+python adapters/normalize_compound_spec_bom.py <你的BOM.xlsx>
 ```
+
+不加 `-o` 的話,會跟 `bom-parse` 一樣自動建立「今天日期_BOM檔名」資料夾
+(例如 `20260814_bom_2024Q1_projectX/`),`parsed_bom.json` 存到裡面,下游
+`bom-vendor-lookup` 等步驟會沿用同一個資料夾。需要指定固定路徑的話仍可以
+加 `-o parsed_bom.json`。
 
 > **注意**:這支腳本用 `openpyxl` 讀檔,**只吃 `.xlsx`**,不吃 csv。
 > (`bom-parse` 是吃 csv 的,兩邊不一樣。)
@@ -59,7 +64,7 @@ python adapters/normalize_compound_spec_bom.py <你的BOM.xlsx> -o parsed_bom.js
 想先看看效果,倉庫裡有一份示範檔:
 
 ```bash
-python adapters/normalize_compound_spec_bom.py examples/sample_compound_spec_bom.xlsx -o parsed_bom.json
+python adapters/normalize_compound_spec_bom.py examples/sample_compound_spec_bom.xlsx
 ```
 
 ### 檢查拆出來的東西對不對
@@ -68,8 +73,7 @@ python adapters/normalize_compound_spec_bom.py examples/sample_compound_spec_bom
 一定要抽查。加 `--debug-xlsx` 會另外輸出一份「拆解後」的 xlsx 給你用 Excel 開:
 
 ```bash
-python adapters/normalize_compound_spec_bom.py <你的BOM.xlsx> -o parsed_bom.json \
-    --debug-xlsx check_me.xlsx
+python adapters/normalize_compound_spec_bom.py <你的BOM.xlsx> --debug-xlsx check_me.xlsx
 ```
 
 **這份 debug 檔只給人看,不要再餵回 pandas。** 原因寫在 `build_rows()` 的

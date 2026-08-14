@@ -5,7 +5,11 @@
 純本機、純腳本,不打任何外部 API,也不叫任何 LLM。
 
 用法:
-    python run.py <parsed_bom.json> <vendor_candidates.json> -o match_scores.json
+    python run.py <parsed_bom.json> <vendor_candidates.json> [-o match_scores.json]
+
+    不指定 -o 時,預設寫進「輸入的 parsed_bom.json 所在的資料夾」,跟同一
+    次 pipeline run 的其他中繼檔收在一起。手動指定 -o 時完全尊重使用者
+    選的路徑。
 
 輸出格式(match_scores.json):
     {
@@ -40,7 +44,10 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
 
-def run(parsed_bom_path: str, vendor_candidates_path: str, out_path: str) -> dict:
+def run(parsed_bom_path: str, vendor_candidates_path: str, out_path: str = None) -> dict:
+    if out_path is None:
+        out_path = str(Path(parsed_bom_path).resolve().parent / "match_scores.json")
+
     bom_data = json.loads(Path(parsed_bom_path).read_text(encoding="utf-8"))
     vendor_data = json.loads(Path(vendor_candidates_path).read_text(encoding="utf-8"))
 
@@ -68,7 +75,8 @@ def main():
     parser = argparse.ArgumentParser(description="節點 C(規則式):比對信心分數")
     parser.add_argument("parsed_bom_json", help="bom-parse 產出的 parsed_bom.json")
     parser.add_argument("vendor_candidates_json", help="bom-vendor-lookup 產出的 vendor_candidates.json")
-    parser.add_argument("-o", "--out", default="match_scores.json", help="輸出 JSON 路徑")
+    parser.add_argument("-o", "--out", default=None,
+                         help="輸出 JSON 路徑;不指定則存到 parsed_bom.json 所在的資料夾")
     args = parser.parse_args()
     run(args.parsed_bom_json, args.vendor_candidates_json, args.out)
 

@@ -254,17 +254,47 @@ SKILL.md。
 Mouser 實際回傳的欄位名稱跟這裡假設的不同,去
 `_mouser_part_number_lead_availability()` 調整。
 
-### 輸出路徑:自動開資料夾
+### 輸出路徑:自動開資料夾(從節點 A 就開始,不是到節點 D 才開)
 
-`bom-report-finalize`(以及 `mouser_lookup.py` 直接跑的一次到底 CLI)沒指定
-`-o` 時,不是直接把 xlsx/html 丟在專案根目錄,而是先建立一個
-`{今天日期}_{來源 BOM 檔名}/` 資料夾,兩個檔案都放進去——BOM 一多,產出物
-不會全部散在根目錄裡混在一起。同一天針對同一份來源 BOM 重跑(改完
-`manufacturer_aliases.md` 重算分數、套用新的 `bom-match-review` 判決),
-會重用同一個資料夾直接覆蓋裡面的舊檔案,不會每次重跑就多開一個資料夾——
-「重跑這一步很便宜」是這條 pipeline 的核心設計原則之一。xlsx 本身若被使用者
-在 Excel 裡開著鎖住,檔名層級的 `_v2`/`_v3` 版本化重試邏輯不受影響,照常
-運作。使用者用 `-o` 明確指定路徑時,完全不套用這層資料夾邏輯。
+節點 A(`bom-parse`,或走 `adapters/normalize_compound_spec_bom.py` 那條路徑)
+沒指定 `-o` 時,不是直接把 `parsed_bom.json` 丟在專案根目錄,而是先呼叫
+`mouser_lookup.default_run_folder()` 建立一個
+`{今天日期}_{來源 BOM 檔名}/` 資料夾,寫進裡面。節點 B/C(`bom-vendor-lookup`/
+`bom-match-score`)沒指定 `-o` 時,預設直接沿用「輸入的 `parsed_bom.json`
+所在的資料夾」(不會重新呼叫 `default_run_folder()` 自己再算一次日期——
+避免 pipeline 跨夜執行時,同一個 run 因為「今天」變了被拆進不同名稱的
+資料夾)。`bom-match-review` 產出的 `review_verdicts.json` 依 SKILL.md 指示
+也存進同一個資料夾。節點 D(`bom-report-finalize`)一樣沿用該資料夾,
+xlsx/html 用資料夾名稱當檔名前綴。
+
+這樣一次 pipeline run 的全部中繼檔(`parsed_bom.json`/`vendor_candidates.json`/
+`match_scores.json`/`review_verdicts.json`)跟最終報表都收在同一個資料夾——
+**不同 BOM 從第一步就落在不同資料夾,不會共用固定檔名互相覆蓋**(這是這套
+資料夾機制存在的主要原因:兩個 Claude Code session 同時處理不同 BOM 時,
+原本各步驟預設寫死在專案根目錄的固定檔名會互相覆蓋)。
+
+同一份來源 BOM 重跑(改完 `manufacturer_aliases.md` 重算分數、套用新的
+`bom-match-review` 判決)會重用同一個資料夾直接覆蓋裡面的舊檔案,不會每次
+重跑就多開一個資料夾——「重跑這一步很便宜」是這條 pipeline 的核心設計原則
+之一。**注意:這解決不了「同一份 BOM、同一天、兩個 session 幾乎同時處理」
+這種邊緣情況**——這種情況兩邊還是會落到同一個資料夾互相覆蓋,只是機率遠低於
+「不同 BOM 撞名」。xlsx 本身若被使用者在 Excel 裡開著鎖住,檔名層級的
+`_v2`/`_v3` 版本化重試邏輯不受影響,照常運作。使用者用 `-o` 明確指定路徑時,
+完全不套用這層資料夾邏輯。
+
+**這套資料夾邏輯只涵蓋節點 A~D 五個 skill 的預設輸出路徑,不含
+`.mouser_cache.json`**——那是刻意設計成全專案共用的查詢快取(見〈2. BOM
+資料最小化〉),資料夾隔離對它沒有作用,兩個 session 同時查詢仍可能互相
+覆蓋對方剛寫入還沒存檔的快取項目(不是檔案損毀,是其中一方新查到的結果被
+蓋掉、下次要重查)。
+
+**`mouser_lookup.py` 自己的一次到底 CLI**(`python mouser_lookup.py
+your_bom.xlsx -o report.xlsx` 這種直接跑完整流程、不透過五個 skill 的用法)
+**沒有套用這套資料夾邏輯**——它的 `-o` 預設是寫死的 `bom_mouser_report.xlsx`
+(專案根目錄,見 `main()`),不會自動建資料夾,也不會受益於這裡的併發保護。
+會用到這個一次到底 CLI 的場合通常是單人快速測試,兩個 session 同時用這個
+入口處理不同 BOM 仍會撞名互相覆蓋——如果之後這個用法變成常態,值得比照
+五個 skill 補上同樣的資料夾邏輯。
 
 ### HTML 視覺化摘要(`render_html_report()`)
 

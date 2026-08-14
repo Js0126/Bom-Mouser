@@ -32,16 +32,18 @@ API 的一步**——Mouser/DigiKey 都是免費 API,但仍然是對外連線,�
 
 ## 執行
 
-在**專案根目錄**執行:
+在**專案根目錄**執行(`parsed_bom.json` 換成 bom-parse 那一步實際建立的
+run 資料夾路徑,例如 `20260814_bom_2024Q1_projectX/parsed_bom.json`;不
+指定 `-o` 的話,`vendor_candidates.json` 會自動存進同一個資料夾):
 
 ```bash
-python .claude/skills/bom-vendor-lookup/scripts/run.py parsed_bom.json -o vendor_candidates.json
+python .claude/skills/bom-vendor-lookup/scripts/run.py <run資料夾>/parsed_bom.json
 ```
 
 小批量測試:
 
 ```bash
-python .claude/skills/bom-vendor-lookup/scripts/run.py parsed_bom.json -o vendor_candidates.json --limit 10
+python .claude/skills/bom-vendor-lookup/scripts/run.py <run資料夾>/parsed_bom.json --limit 10
 ```
 
 ## 重跑很便宜,但便宜的代價是資料不會更新
@@ -70,7 +72,7 @@ python .claude/skills/bom-vendor-lookup/scripts/run.py parsed_bom.json -o vendor
 加 `--no-cache` 的語意是「**這次不讀快取**」,**不是**「刷新快取」:
 
 ```bash
-python .claude/skills/bom-vendor-lookup/scripts/run.py parsed_bom.json -o vendor_candidates.json --no-cache
+python .claude/skills/bom-vendor-lookup/scripts/run.py <run資料夾>/parsed_bom.json --no-cache
 ```
 
 這樣會全部重查,但 `.mouser_cache.json` **原封不動留在原地**,下次沒加這個

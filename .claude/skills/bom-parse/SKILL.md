@@ -17,8 +17,15 @@ description: Step 1 of the BOM pricing pipeline — parse a raw BOM file (xlsx/c
 在**專案根目錄**(`mouser_lookup.py` 所在的目錄)執行:
 
 ```bash
-python .claude/skills/bom-parse/scripts/run.py <bom_path> -o parsed_bom.json
+python .claude/skills/bom-parse/scripts/run.py <bom_path>
 ```
+
+不加 `-o` 的話,會自動建立「今天日期_BOM檔名」資料夾(例如
+`20260814_bom_2024Q1_projectX/`),`parsed_bom.json` 存到裡面——下游
+`bom-vendor-lookup`/`bom-match-score`/`bom-report-finalize` 步驟預設也會
+沿用同一個資料夾,同一次 pipeline run 的所有中繼檔跟最終報表都收在一起。
+不同 BOM(=不同 session)各自落在不同資料夾,不會共用檔名互相覆蓋。需要
+指定固定路徑的話仍可以加 `-o parsed_bom.json`。
 
 Windows 主控台印中文可能亂碼,需要的話加 `PYTHONIOENCODING=utf-8`。
 
@@ -51,8 +58,11 @@ Windows 主控台印中文可能亂碼,需要的話加 `PYTHONIOENCODING=utf-8`�
 把儲存格拆開再產生格式完全相同的 `parsed_bom.json`,下游步驟不用改:
 
 ```bash
-python adapters/normalize_compound_spec_bom.py <bom_path> -o parsed_bom.json
+python adapters/normalize_compound_spec_bom.py <bom_path>
 ```
+
+同樣不加 `-o` 就會用「今天日期_BOM檔名」資料夾規則,跟正常走 bom-parse
+的行為一致。
 
 詳見 `adapters/README.md`。
 

@@ -4,8 +4,12 @@
 但仍然是對外連線,節流/快取都在這裡處理)。
 
 用法:
-    python run.py <parsed_bom.json> -o vendor_candidates.json
+    python run.py <parsed_bom.json> [-o vendor_candidates.json]
         [--limit N] [--no-cache] [--no-keyword-fallback] [--no-digikey-fallback]
+
+    不指定 -o 時,預設寫進「輸入的 parsed_bom.json 所在的資料夾」(跟
+    bom-parse 建立的 run 資料夾一致),不是專案根目錄——讓同一次 pipeline
+    run 的中繼檔都收在一起。手動指定 -o 時完全尊重使用者選的路徑。
 
 輸出格式(vendor_candidates.json):
     {
@@ -37,12 +41,15 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 
 def run(
     parsed_bom_path: str,
-    out_path: str,
+    out_path: str = None,
     limit: int = None,
     use_cache: bool = True,
     enable_keyword_fallback: bool = True,
     enable_digikey_fallback: bool = True,
 ) -> dict:
+    if out_path is None:
+        out_path = str(Path(parsed_bom_path).resolve().parent / "vendor_candidates.json")
+
     api_key = ml._get_api_key()
     data = json.loads(Path(parsed_bom_path).read_text(encoding="utf-8"))
 
@@ -75,7 +82,8 @@ def run(
 def main():
     parser = argparse.ArgumentParser(description="節點 B:Mouser/DigiKey 查詢")
     parser.add_argument("parsed_bom_json", help="bom-parse 產出的 parsed_bom.json")
-    parser.add_argument("-o", "--out", default="vendor_candidates.json", help="輸出 JSON 路徑")
+    parser.add_argument("-o", "--out", default=None,
+                         help="輸出 JSON 路徑;不指定則存到 parsed_bom.json 所在的資料夾")
     parser.add_argument("--limit", type=int, default=None, help="只查前 N 筆(小批量測試用)")
     parser.add_argument("--no-cache", action="store_true", help="停用本機查詢快取")
     parser.add_argument("--no-keyword-fallback", action="store_true", help="停用 Mouser keyword 搜尋")

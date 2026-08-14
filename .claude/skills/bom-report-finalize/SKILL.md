@@ -15,29 +15,30 @@ description: Step 5 (final step) of the BOM pricing pipeline — merge the earli
 
 ## 執行
 
-**不指定 `-o` 就好**,預設會自動開一個
-`{執行當天日期}_{來源 BOM 檔名}/` 資料夾(來源檔名存在 `parsed_bom.json`
-的 `source_bom` 欄位),把 xlsx 跟 html 都放進去,例如來源是
-`bom_2024Q1_projectX.xlsx`,今天是 2024-03-15,輸出就會是
-`20240315_bom_2024Q1_projectX/20240315_bom_2024Q1_projectX_報價.xlsx`
-(+ 同資料夾裡同檔名的 `.html`)——BOM 一多,每次的產出物才不會全部散在
-專案根目錄裡混在一起分不出是哪一批。同一天針對同一份來源 BOM 重跑會重用
-同一個資料夾直接覆蓋,不會每重跑一次就多開一個。使用者有指定想要的檔名
-時才用 `-o`(用 `-o` 就完全不套用這個資料夾邏輯,尊重使用者自己選的路徑)。
+**不指定 `-o` 就好**,預設會寫進「輸入的 `parsed_bom.json` 所在的資料夾」
+——這個 `{今天日期}_{來源 BOM 檔名}/` 資料夾是 pipeline 第一步
+`bom-parse` 就已經建好的(例如 `20260814_bom_2024Q1_projectX/`),不是
+這一步才建立,xlsx/html 直接沿用同一個資料夾、用資料夾名稱當檔名前綴,例如
+`20260814_bom_2024Q1_projectX/20260814_bom_2024Q1_projectX_報價.xlsx`
+(+ 同資料夾裡同檔名的 `.html`)——這樣一次 pipeline run 從 `parsed_bom.json`
+到最終報表全部收在同一個資料夾,不同 BOM(=不同 session)各自落在不同
+資料夾,不會共用檔名互相覆蓋。同一份來源 BOM 重跑會重用同一個資料夾直接
+覆蓋,不會每重跑一次就多開一個。使用者有指定想要的檔名時才用 `-o`(用
+`-o` 就完全不套用這個資料夾邏輯,尊重使用者自己選的路徑)。
 
 **不含 Claude 判決**(只用規則式評分結果,`bom-match-review` 還沒跑或
 使用者不需要):
 
-在**專案根目錄**執行:
+在**專案根目錄**執行(三個輸入路徑都換成 run 資料夾裡的實際路徑):
 
 ```bash
-python .claude/skills/bom-report-finalize/scripts/run.py parsed_bom.json vendor_candidates.json match_scores.json
+python .claude/skills/bom-report-finalize/scripts/run.py <run資料夾>/parsed_bom.json <run資料夾>/vendor_candidates.json <run資料夾>/match_scores.json
 ```
 
 **含 Claude 判決**(`bom-match-review` 已經產出 `review_verdicts.json`):
 
 ```bash
-python .claude/skills/bom-report-finalize/scripts/run.py parsed_bom.json vendor_candidates.json match_scores.json --review review_verdicts.json
+python .claude/skills/bom-report-finalize/scripts/run.py <run資料夾>/parsed_bom.json <run資料夾>/vendor_candidates.json <run資料夾>/match_scores.json --review <run資料夾>/review_verdicts.json
 ```
 
 加了 `--review` 之後,判決會直接反映進 `match_status`:
