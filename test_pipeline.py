@@ -116,6 +116,59 @@ def test_match_validation():
     return bom_lines, {resistor.mpn: good_candidates, mcu.mpn: bad_candidates}
 
 
+def test_match_validation_price_tie_break():
+    # 同一個 MPN 有兩筆候選,分數只差在描述字面相似度,但分數較高的那筆
+    # 缺報價(PriceBreaks 空)。分數差距在 MATCH_PRICE_TIE_MARGIN(預設 0.1)
+    # 以內時,應該優先選有報價的那筆——不要因為描述字面比較像就選中一個
+    # 查得到料、卻查無報價的候選。
+    line = ml.BOMLine(
+        ref_des="D1", mpn="ZD-TEST", manufacturer="UN", qty_per_unit=1,
+        description="zener diode", value="ZD-TEST", package="SOD-323",
+    )
+    priceless_better_desc = {
+        "ManufacturerPartNumber": "ZD-TEST",
+        "Manufacturer": "VendorA",
+        "Description": "zener diode sod",  # 描述字面比對分數較高
+        "PriceBreaks": [],
+        "Min": "1",
+        "Mult": "1",
+    }
+    priced_slightly_lower = {
+        "ManufacturerPartNumber": "ZD-TEST",
+        "Manufacturer": "VendorB",
+        "Description": "zener diode",  # 描述分數略低(差距約 0.07,在容許範圍內)
+        "PriceBreaks": [{"Quantity": 1, "Price": "$0.10", "Currency": "USD"}],
+        "Min": "1",
+        "Mult": "1",
+    }
+    result = ml.match_validation(line, [priceless_better_desc, priced_slightly_lower])
+    assert result.matched_part["Manufacturer"] == "VendorB", result.matched_part
+    assert result.matched_part["PriceBreaks"], "應該選到有報價的候選"
+    print(f"[OK] price tie-break prefers priced candidate, confidence={result.confidence}")
+
+    # 分數差距明顯超過容許範圍時,即使另一筆有報價,還是要尊重分數較高的
+    # 那個——不是「有報價就無條件優先」。
+    clearly_better = {
+        "ManufacturerPartNumber": "ZD-TEST",
+        "Manufacturer": "UN",  # 廠商完全相符,分數明顯領先
+        "Description": "zener diode SOD-323",
+        "PriceBreaks": [],
+        "Min": "1",
+        "Mult": "1",
+    }
+    clearly_worse_but_priced = {
+        "ManufacturerPartNumber": "totally-different-part",
+        "Manufacturer": "SomeOtherCorp",
+        "Description": "unrelated widget",
+        "PriceBreaks": [{"Quantity": 1, "Price": "$1.00", "Currency": "USD"}],
+        "Min": "1",
+        "Mult": "1",
+    }
+    result2 = ml.match_validation(line, [clearly_better, clearly_worse_but_priced])
+    assert result2.matched_part is clearly_better, result2.matched_part
+    print("[OK] price tie-break does not override a clearly higher score")
+
+
 def test_price_break_selection():
     price_breaks = [
         {"Quantity": 1, "Price": "$0.0090", "Currency": "USD"},
@@ -379,6 +432,92 @@ def test_digikey_fallback_in_lookup_all():
     print("[OK] test_digikey_fallback_in_lookup_all")
 
 
+def test_digikey_fallback_when_mouser_priceless():
+    # 模擬:Mouser 有回傳候選(型號比對上了),但候選 PriceBreaks 是空的
+    # (缺貨/停產/該地區不開賣)。驗證 lookup_all 仍然會觸發 DigiKey fallback
+    # ——這是這次修正的重點,以前只有「Mouser 完全查無候選」才會觸發——
+    # 而且 Mouser、DigiKey 兩邊的候選會合併成同一份 list,不是互斥二選一。
+    mouser_priceless_part = {
+        "Manufacturer": "VendorA",
+        "ManufacturerPartNumber": "SHARED-PART",
+        "Description": "part with no mouser price",
+        "PriceBreaks": [],
+        "Min": "1",
+        "Mult": "1",
+    }
+    digikey_priced_part = {
+        "Manufacturer": "VendorA",
+        "ManufacturerPartNumber": "SHARED-PART",
+        "Description": "part with digikey price",
+        "PriceBreaks": [{"Quantity": 1, "Price": 2.50, "Currency": "USD"}],
+        "Min": 1,
+        "Mult": 1,
+        "_source": "DigiKey",
+    }
+
+    orig_query_mouser = ml.query_mouser
+    orig_query_digikey_keyword = ml.query_digikey_keyword
+    orig_digikey_enabled = ml.DIGIKEY_ENABLED
+    ml.query_mouser = lambda mpn, api_key, max_candidates=5: [dict(mouser_priceless_part)]
+    ml.query_digikey_keyword = lambda keyword, max_candidates=5: [dict(digikey_priced_part)]
+    ml.DIGIKEY_ENABLED = True
+    try:
+        line = ml.BOMLine(ref_des="U9", mpn="SHARED-PART", manufacturer="VendorA", qty_per_unit=1)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "cache.json"
+            results = ml.lookup_all([line], api_key="dummy", cache_path=cache_path, use_cache=True)
+
+        candidates = results["SHARED-PART"]
+        assert len(candidates) == 2, candidates
+        sources = {c.get("_source") for c in candidates}
+        assert sources == {None, "DigiKey"}, sources
+
+        matches = ml.match_validation_all([line], results)
+        report = ml.build_report([line], results, matches)
+        assert report[0]["match_status"] == "matched"
+        assert report[0]["price_source"] == "DigiKey", "應該選到有報價的 DigiKey 候選"
+        assert report[0]["mouser_unit_price"] == 2.50
+    finally:
+        ml.query_mouser = orig_query_mouser
+        ml.query_digikey_keyword = orig_query_digikey_keyword
+        ml.DIGIKEY_ENABLED = orig_digikey_enabled
+    print("[OK] test_digikey_fallback_when_mouser_priceless")
+
+
+def test_digikey_not_queried_when_mouser_already_priced():
+    # 反面案例:Mouser 候選已經有報價時,不應該多打一次 DigiKey——
+    # 節省查詢額度,行為跟修正前一致。
+    mouser_priced_part = {
+        "Manufacturer": "VendorA",
+        "ManufacturerPartNumber": "PRICED-PART",
+        "Description": "already has a price",
+        "PriceBreaks": [{"Quantity": 1, "Price": "$1.00", "Currency": "USD"}],
+        "Min": "1",
+        "Mult": "1",
+    }
+
+    def _digikey_should_not_be_called(keyword, max_candidates=5):
+        raise AssertionError("DigiKey 不該被呼叫——Mouser 候選已經有報價")
+
+    orig_query_mouser = ml.query_mouser
+    orig_query_digikey_keyword = ml.query_digikey_keyword
+    orig_digikey_enabled = ml.DIGIKEY_ENABLED
+    ml.query_mouser = lambda mpn, api_key, max_candidates=5: [mouser_priced_part]
+    ml.query_digikey_keyword = _digikey_should_not_be_called
+    ml.DIGIKEY_ENABLED = True
+    try:
+        line = ml.BOMLine(ref_des="U10", mpn="PRICED-PART", manufacturer="VendorA", qty_per_unit=1)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "cache.json"
+            results = ml.lookup_all([line], api_key="dummy", cache_path=cache_path, use_cache=True)
+        assert results["PRICED-PART"] == [mouser_priced_part]
+    finally:
+        ml.query_mouser = orig_query_mouser
+        ml.query_digikey_keyword = orig_query_digikey_keyword
+        ml.DIGIKEY_ENABLED = orig_digikey_enabled
+    print("[OK] test_digikey_not_queried_when_mouser_already_priced")
+
+
 def test_no_import_time_api_key_requirement():
     # 確保 import 這個模組不會因為沒有 MOUSER_SEARCH_API_KEY 而炸掉
     # (骨架程式碼原本在 import 時就檢查,已改為延遲到 lookup_all()/run_pipeline() 才檢查)
@@ -395,6 +534,7 @@ def test_no_import_time_api_key_requirement():
 if __name__ == "__main__":
     test_parse_bom_column_mapping()
     test_match_validation()
+    test_match_validation_price_tie_break()
     test_price_break_selection()
     test_build_report_and_xlsx_output()
     test_data_fetched_at_flows_to_report()
@@ -402,5 +542,7 @@ if __name__ == "__main__":
     test_normalize_digikey_part()
     test_cache_migration()
     test_digikey_fallback_in_lookup_all()
+    test_digikey_fallback_when_mouser_priceless()
+    test_digikey_not_queried_when_mouser_already_priced()
     test_no_import_time_api_key_requirement()
     print("\n全部自測通過 ✅")
