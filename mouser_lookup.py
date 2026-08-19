@@ -65,6 +65,15 @@ MOUSER_KEYWORD_API_URL = "https://api.mouser.com/api/v1/search/keyword"
 # 程式碼。
 RATE_LIMIT_SECONDS = float(os.environ.get("MOUSER_RATE_LIMIT_SECONDS", "1.0"))
 MATCH_CONFIDENCE_THRESHOLD = float(os.environ.get("MATCH_CONFIDENCE_THRESHOLD", "0.7"))
+# match_validation() 的報價 tie-break 容許範圍:同一顆料常常有好幾筆候選
+# (不同廠內編碼/包裝),分數只反映廠商名稱/描述字面相似度,不代表哪個候選
+# 比較「該買」。分數差距在這個範圍內視為打平,優先選有實際報價
+# (PriceBreaks 非空)的候選,而不是單純分數最高但查得到料、卻沒有報價的
+# 那個。分數差距超過這個範圍時仍然尊重分數較高的候選——不是「有報價就
+# 無條件優先」。0.1 是憑經驗抓的:兩個真正不相干的候選,分數差距通常遠大
+# 於 0.1;而同一 MPN 下不同廠內編碼/包裝的候選,分數差距經驗上多半在這個
+# 範圍內。
+MATCH_PRICE_TIE_MARGIN = float(os.environ.get("MATCH_PRICE_TIE_MARGIN", "0.1"))
 DEFAULT_CACHE_PATH = Path(__file__).with_name(".mouser_cache.json")
 
 
@@ -670,6 +679,19 @@ def _lookup_key(line: BOMLine) -> Optional[str]:
     return f"__keyword__:{kw}" if kw else None
 
 
+def _has_price_breaks(part: dict) -> bool:
+    """
+    判斷單一候選是否帶有可用的報價(PriceBreaks 非空)。
+
+    Mouser/DigiKey 都可能回傳「型號比對上了,但候選本身缺貨/停產/該地區
+    不開賣」的候選——這種候選的 PriceBreaks 是空 list `[]`,不代表查詢
+    失敗,是供應商明確表示這個品項現在沒有報價。這個判斷同時用在:
+    - 節點 B(`lookup_all`):決定要不要觸發 DigiKey fallback。
+    - 節點 C(`match_validation`):候選之間分數打平時,優先選有報價的那個。
+    """
+    return bool(part.get("PriceBreaks"))
+
+
 def lookup_all(
     bom_lines: list[BOMLine],
     api_key: Optional[str] = None,
@@ -683,14 +705,23 @@ def lookup_all(
     以 _lookup_key(line) 為 key 建立查詢結果字典(值為候選料件 list)。
     - 有 MPN 的料件先用 Mouser partnumber 搜尋;沒有 MPN 的料件(若
       enable_keyword_fallback)改用 Mouser keyword 搜尋。
-    - Mouser 查無結果、且 enable_digikey_fallback 為真(且 DIGIKEY_ENABLED,
-      即有設定 Client ID/Secret)時,改用同一個查詢字串(MPN 或關鍵字)查
-      DigiKey。DigiKey 找到的候選會轉成跟 Mouser 相同欄位形狀(見
-      _normalize_digikey_part),節點 C/D 不用管來源是誰。
+    - **Mouser 查無結果、或 Mouser 有候選但全部都沒有報價**(型號比對上
+      但缺貨/停產/該地區不開賣,見 `_has_price_breaks`),且
+      enable_digikey_fallback 為真(且 DIGIKEY_ENABLED,即有設定 Client
+      ID/Secret)時,改用同一個查詢字串(MPN 或關鍵字)查 DigiKey 補充。
+      DigiKey 找到的候選會轉成跟 Mouser 相同欄位形狀(見
+      _normalize_digikey_part),節點 C/D 不用管來源是誰。「Mouser 有候選
+      但沒報價」不會被目前的 no_candidates 判斷攔到,以前這種情況完全
+      不會嘗試 DigiKey——即使有設定 DigiKey 憑證,這幾筆也永遠查不到
+      替代報價,是這次修正的重點。
+    - Mouser 有候選、DigiKey 也補到候選時,兩邊的候選會**合併**成同一份
+      candidate list 交給節點 C——節點 C 的 tie-break 邏輯(見
+      `match_validation`)才有機會在分數打平時選到有報價的那個,不管它是
+      來自 Mouser 還是 DigiKey。
     - 快取以「每個 key 分別記錄 Mouser / DigiKey 各自的查詢狀態」儲存(見
       _load_cache),同一個 key 的 Mouser 結果查過一次就不會再查,DigiKey
-      也是;只有「Mouser 查過是空、但這次才第一次啟用 DigiKey」的情況會
-      補查 DigiKey,其餘一律吃快取。
+      也是;只有「Mouser 查過是空或沒報價、但這次才第一次啟用 DigiKey」的
+      情況會補查 DigiKey,其餘一律吃快取。
     - 每查到 save_every 筆新結果就存一次快取,長批次查詢中途斷線不會把已經
       查到的結果弄丟。
     - 查詢失敗(VendorQueryError,重試後仍拿不到有效回應)**不會**被寫進
@@ -744,9 +775,10 @@ def lookup_all(
             entry["mouser_fetched_at"] = today
             entry_dirty = True
 
-        # ---- DigiKey(只在 Mouser 查無結果時當 fallback) ----
+        # ---- DigiKey(Mouser 查無結果、或 Mouser 有候選但都沒報價時當 fallback) ----
         digikey_parts = entry.get("digikey")
-        if not mouser_parts and enable_digikey_fallback and DIGIKEY_ENABLED:
+        mouser_priced = bool(mouser_parts) and any(_has_price_breaks(p) for p in mouser_parts)
+        if not mouser_priced and enable_digikey_fallback and DIGIKEY_ENABLED:
             if digikey_parts is None:
                 dk_keyword = line.mpn or _build_keyword(line)
                 try:
@@ -756,25 +788,29 @@ def lookup_all(
                     entry_dirty = True
                     if digikey_parts:
                         digikey_used += 1
-                        print(f"  [mouser_lookup] {key!r} Mouser 查無結果,DigiKey 找到 {len(digikey_parts)} 筆候選")
+                        if mouser_parts:
+                            print(f"  [mouser_lookup] {key!r} Mouser 候選沒有報價,DigiKey 補充 {len(digikey_parts)} 筆候選")
+                        else:
+                            print(f"  [mouser_lookup] {key!r} Mouser 查無結果,DigiKey 找到 {len(digikey_parts)} 筆候選")
                 except VendorQueryError as e:
                     print(f"  [warn] {key!r} DigiKey fallback 查詢失敗(不影響 Mouser 結果): {e}")
                 except Exception as e:
                     print(f"  [warn] {key!r} DigiKey fallback 發生非預期例外: {e.__class__.__name__}: {e}")
 
-        final_parts = mouser_parts or digikey_parts or []
-        # 把「這批候選是哪一天查的」蓋在候選 dict 上,讓它跟著 vendor_candidates.json
-        # 一路流到報表(做法跟 _normalize_digikey_part 的 "_source" 標記一致)。
-        # 快取沒有時效,不標日期的話,使用者打開報表完全看不出手上這份報價是
-        # 今天查的還是半年前查的——而價格/MOQ 都是會變的。
-        if mouser_parts:
-            fetched_at = entry.get("mouser_fetched_at")
-        elif digikey_parts:
-            fetched_at = entry.get("digikey_fetched_at")
-        else:
-            fetched_at = entry.get("mouser_fetched_at")
-        for part in final_parts:
-            part["_fetched_at"] = fetched_at
+        # 把「這批候選是哪一天查的」蓋在各自的候選 dict 上,讓它跟著
+        # vendor_candidates.json 一路流到報表(做法跟 _normalize_digikey_part 的
+        # "_source" 標記一致)。快取沒有時效,不標日期的話,使用者打開報表完全
+        # 看不出手上這份報價是今天查的還是半年前查的——而價格/MOQ 都是會變的。
+        # Mouser/DigiKey 各自的候選分別蓋各自的查詢日期,不要因為合併成同一份
+        # list 就用同一個日期蓋過去(兩邊很可能不是同一天查的)。
+        for part in mouser_parts:
+            part["_fetched_at"] = entry.get("mouser_fetched_at")
+        for part in (digikey_parts or []):
+            part["_fetched_at"] = entry.get("digikey_fetched_at")
+        # Mouser 有候選但沒報價、DigiKey 又補到候選時,兩邊合併成同一份 list
+        # 交給節點 C——match_validation() 的 tie-break 邏輯才有機會在分數
+        # 打平時選到有報價的那個,不管它來自 Mouser 還是 DigiKey。
+        final_parts = mouser_parts + (digikey_parts or [])
         results[key] = final_parts
         if entry_dirty:
             queried_count += 1
@@ -950,13 +986,13 @@ def match_validation(
     bom_line: BOMLine,
     candidates: list[dict],
     threshold: float = MATCH_CONFIDENCE_THRESHOLD,
+    price_tie_margin: float = MATCH_PRICE_TIE_MARGIN,
 ) -> MatchResult:
     """比對 Mouser 候選結果與原始 BOM 是否為同一料件,產出信心分數。"""
     if not candidates:
         return MatchResult(mpn=bom_line.mpn, match_status="no_candidates", confidence=0.0)
 
-    best_part = None
-    best_score = -1.0
+    scored: list[tuple[float, dict]] = []
     for part in candidates:
         mfr_score = _manufacturer_score(bom_line.manufacturer, part.get("Manufacturer", ""))
         desc_score = _description_score(bom_line, part)
@@ -971,9 +1007,24 @@ def match_validation(
         if bonus > 0 and mfr_score >= 0.85:
             score = max(score, 0.92)
 
-        if score > best_score:
-            best_score = score
-            best_part = part
+        scored.append((score, part))
+
+    top_score = max(s for s, _ in scored)
+
+    # 報價 tie-break:同一顆料常見好幾筆候選(不同廠內編碼/包裝),分數只
+    # 反映名稱/描述字面相似度,不代表哪個候選比較「該買」。分數在
+    # price_tie_margin 範圍內視為打平時,優先選有實際報價(PriceBreaks 非
+    # 空)的候選——不要因為描述字面比較像就選中一個型號對得上、卻查無
+    # 報價的候選,把明明有報價的候選晾在旁邊。分數差距超過門檻時仍然尊重
+    # 分數較高的候選,不是「有報價就無條件優先」。confidence 一律回報實際
+    # 選中候選的分數(可能因為 tie-break 換人而跟 top_score 略有落差),
+    # 不回報 top_score——不然報表上的信心分數會對不上實際選中的候選。
+    near_top = [(s, p) for s, p in scored if top_score - s <= price_tie_margin]
+    priced_near_top = [(s, p) for s, p in near_top if _has_price_breaks(p)]
+    if priced_near_top:
+        best_score, best_part = max(priced_near_top, key=lambda sp: sp[0])
+    else:
+        best_score, best_part = max(scored, key=lambda sp: sp[0])
 
     status = "matched" if best_score >= threshold else "needs_human_review"
     return MatchResult(
@@ -1569,7 +1620,7 @@ def render_html_report(report: list[dict], summary: dict, source_bom_path: str, 
     header_meta = (
         f'<span>來源:<strong> {_html_escape(source_name)}</strong></span>'
         f'<span class="dot"><strong>{total_lines}</strong> 列 / <strong>{unique_mpns}</strong> 個唯一 MPN</span>'
-        f'<span class="dot">主要資料源:<strong> Mouser</strong>(查無結果改查 DigiKey)</span>'
+        f'<span class="dot">主要資料源:<strong> Mouser</strong>(查無結果或無報價時改查 DigiKey)</span>'
         f'{fetch_note}'
         f'<span class="dot">產出日期:<strong> {_html_escape(generated_date)}</strong></span>'
     )
@@ -1804,7 +1855,7 @@ def run_pipeline(
 
     api_key = _get_api_key()
     if enable_digikey_fallback and DIGIKEY_ENABLED:
-        print("[mouser_lookup] DigiKey fallback 已啟用(Mouser 查無結果時會自動改查 DigiKey)")
+        print("[mouser_lookup] DigiKey fallback 已啟用(Mouser 查無結果或候選皆無報價時會自動改查 DigiKey)")
     elif enable_digikey_fallback and not DIGIKEY_ENABLED:
         print("[mouser_lookup] 未設定 DIGIKEY_CLIENT_ID/SECRET,DigiKey fallback 停用中")
 
@@ -1850,7 +1901,7 @@ def main():
     parser.add_argument("--no-keyword-fallback", action="store_true",
                          help="停用缺 MPN 料件的 keyword 搜尋 fallback")
     parser.add_argument("--no-digikey-fallback", action="store_true",
-                         help="停用 Mouser 查無結果時的 DigiKey fallback(即使有設定 DIGIKEY_CLIENT_ID/SECRET)")
+                         help="停用 Mouser 查無結果或候選皆無報價時的 DigiKey fallback(即使有設定 DIGIKEY_CLIENT_ID/SECRET)")
     parser.add_argument("--limit", type=int, default=None,
                          help="只處理前 N 筆 BOM 列(小批量測試用,避免一次跑完整份 BOM;"
                               "注意是切 BOM 列不是切唯一料件,同一 MPN 出現多次時實際查詢數會比 N 少)")

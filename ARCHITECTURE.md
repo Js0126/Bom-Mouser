@@ -128,12 +128,18 @@ rm .mouser_cache.json     # Windows cmd: del .mouser_cache.json
    寧可送出一個資訊較少但查得到的關鍵字,也不要整筆直接失敗。partnumber
    搜尋(有明確 MPN 的路徑)不受這個限制,只有走 keyword fallback 的被動
    元件才會踩到。
-2. **Mouser 查無結果**、且 `.env` 有設定 DigiKey 憑證時,用同一個查詢字串
-   (MPN 或關鍵字)改查 DigiKey Product Information V4 keyword search。
-   DigiKey 的候選會被轉換成跟 Mouser 完全相同的欄位形狀
+2. **Mouser 查無結果、或 Mouser 有候選但全部都沒有報價**(型號比對上了,
+   但候選缺貨/停產/該地區不開賣,`PriceBreaks` 是空 list——見
+   `_has_price_breaks()`),且 `.env` 有設定 DigiKey 憑證時,用同一個查詢
+   字串(MPN 或關鍵字)改查 DigiKey Product Information V4 keyword
+   search。DigiKey 的候選會被轉換成跟 Mouser 完全相同的欄位形狀
    (`Manufacturer`/`ManufacturerPartNumber`/`Description`/`PriceBreaks`/
    `Min`/`Mult`),外加一個 `_source: "DigiKey"` 標記,這樣節點 C/D 完全
-   不用管資料來自哪個供應商。
+   不用管資料來自哪個供應商。「Mouser 有候選但都沒報價」這種情況以前不會
+   觸發 DigiKey fallback(只有「完全查無候選」才會)——即使有設定 DigiKey
+   憑證,這類料件也永遠查不到替代報價;Mouser 有候選、DigiKey 也補到結果
+   時,兩邊的候選會合併成同一份 candidate list 一起交給節點 C 評分,不是
+   互斥二選一。
 3. **節流**:預設每次請求間隔 1 秒(`MOUSER_RATE_LIMIT_SECONDS`,可調),
    Mouser 官方未公布硬限制,業界估算保守值約 30 req/min,目前設定已略高於
    此值,若開始遇到限流建議調高。DigiKey 官方限制寬鬆許多(120 req/min,
@@ -162,6 +168,14 @@ rm .mouser_cache.json     # Windows cmd: del .mouser_cache.json
 - **身分覆寫**:MPN 完全相符 + 廠商高度相符(≥0.85)時,分數至少墊到
   0.92,不會被供應商簡略的 Description(甚至完全不含規格數字)拖累到門檻
   以下——MPN+廠商在電子料件的世界裡已經是近乎確定的身分證明。
+- **報價 tie-break**:同一個 MPN 常常有好幾筆候選(不同廠內編碼/包裝),
+  分數只反映廠商名稱/描述字面相似度,不代表哪個候選比較「該買」——分數
+  最高的候選有可能剛好缺貨/停產/該地區不開賣,而分數差一點點的另一筆
+  候選其實有報價、有現貨。分數差距在 `MATCH_PRICE_TIE_MARGIN`(預設
+  0.1,可用環境變數調整)以內視為打平時,優先選有實際報價的候選;分數
+  差距超過這個範圍時仍然尊重分數較高的候選,不是「有報價就無條件優先」。
+  報表上的 `match_confidence` 一律是實際選中候選的分數,不是分數最高的
+  那個(tie-break 換人時分數會跟著換,不會對不上選中的候選)。
 - 信心分數 **低於門檻(預設 0.7,可用環境變數 `MATCH_CONFIDENCE_THRESHOLD`
   調整)標記為 `needs_human_review`**。
 
